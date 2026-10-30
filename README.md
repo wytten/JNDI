@@ -1,0 +1,1 @@
+See https://docs.oracle.com/javase/tutorial/jndi/ldap/sasl.html
