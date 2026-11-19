@@ -29,17 +29,18 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */ 
 
-import javax.naming.*;
-import javax.naming.directory.*;
-
-import com.sun.jndi.ldap.LdapCtxFactory;
+import javax.naming.Context;
+import javax.naming.NamingException;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
 
 import java.util.Hashtable;
 
 /**
  * Demonstrates how to discover a server's supported SASL mechanisms.
  *
- * usage: java ServerSasl
+ * usage: java ServerSasl url username password
  */
 class ServerSasl {
     public static void main(String[] args) {
@@ -53,25 +54,35 @@ class ServerSasl {
       String password = args[2];
       System.out.println("Connecting to " + url);
       try {
-        Hashtable<String, String> props = new Hashtable<String, String>();
-        props.put(Context.SECURITY_PRINCIPAL, username);
-        props.put(Context.SECURITY_CREDENTIALS, password);
-        //props.put(Context.REFERRAL, "follow");
-        
         // Create initial context
-        DirContext ctx = LdapCtxFactory.getLdapCtxInstance(url, props);
+        DirContext ctx = connect(url, username, password);
         System.out.println("Authentication succeeded!");
- 
-        
-        // Read supportedSASLMechanisms from root DSE
-        Attributes attrs = ctx.getAttributes("", new String[]{"supportedSASLMechanisms"});
-        
-        System.out.println(attrs);
-        
-        // Close the context when we're done
-        ctx.close();
+
+        try {
+          System.out.println(supportedSaslMechanisms(ctx));
+        } finally {
+          // Close the context when we're done
+          ctx.close();
+        }
       } catch (NamingException e) {
         e.printStackTrace();
+        System.exit(1);
       }
+    }
+
+    /** Opens an LDAP context, authenticating with a simple bind. */
+    static DirContext connect(String url, String username, String password) throws NamingException {
+      Hashtable<String, String> env = new Hashtable<>();
+      env.put(Context.INITIAL_CONTEXT_FACTORY, "com.sun.jndi.ldap.LdapCtxFactory");
+      env.put(Context.PROVIDER_URL, url);
+      env.put(Context.SECURITY_PRINCIPAL, username);
+      env.put(Context.SECURITY_CREDENTIALS, password);
+      //env.put(Context.REFERRAL, "follow");
+      return new InitialDirContext(env);
+    }
+
+    /** Reads supportedSASLMechanisms from the root DSE. */
+    static Attributes supportedSaslMechanisms(DirContext ctx) throws NamingException {
+      return ctx.getAttributes("", new String[]{"supportedSASLMechanisms"});
     }
 }
